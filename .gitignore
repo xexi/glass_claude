@@ -1,0 +1,5 @@
+# Personal settings (not shared)
+.claude/settings.local.json
+
+# OS
+.DS_Store
