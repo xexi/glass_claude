@@ -2,7 +2,7 @@
 # Glass Claude - Audit Logger
 # Logs Claude Code tool usage outside project directory
 
-AUDIT_DIR="$HOME/.claude/audit"
+AUDIT_DIR="$HOME/.claude/debug"
 AUDIT_LOG="$AUDIT_DIR/audit.log"
 ERROR_LOG="$AUDIT_DIR/error.log"
 JQ_PATH="$HOME/.glass-claude/jq"

@@ -10,7 +10,7 @@ INSTALL_DIR="$HOME/.glass-claude"
 SCRIPT_PATH="$INSTALL_DIR/audit-log.sh"
 JQ_PATH="$INSTALL_DIR/jq"
 SETTINGS_FILE="$HOME/.claude/settings.json"
-AUDIT_DIR="$HOME/.claude/audit"
+AUDIT_DIR="$HOME/.claude/debug"
 
 # jq 1.8.1 official checksums from https://github.com/jqlang/jq/releases
 JQ_VERSION="1.8.1"
@@ -93,7 +93,7 @@ cat > "$SCRIPT_PATH" << 'AUDIT_EOF'
 # Glass Claude - Audit Logger
 # Logs Claude Code tool usage outside project directory
 
-AUDIT_DIR="$HOME/.claude/audit"
+AUDIT_DIR="$HOME/.claude/debug"
 AUDIT_LOG="$AUDIT_DIR/audit.log"
 ERROR_LOG="$AUDIT_DIR/error.log"
 JQ_PATH="$HOME/.glass-claude/jq"
@@ -313,5 +313,5 @@ echo "  Audit script: $SCRIPT_PATH"
 echo "  Hook config:  $SETTINGS_FILE"
 echo "  Audit logs:   $AUDIT_DIR/"
 echo ""
-echo "Run 'claude' in any project. Audit logs appear in ~/.claude/audit/"
+echo "Run 'claude' in any project. Audit logs appear in ~/.claude/debug/"
 echo ""

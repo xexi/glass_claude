@@ -1,6 +1,6 @@
 # Glass Claude
 
-Audit logging for Claude Code — see what Claude does outside your project.
+Audit logging for Claude Code — see what Claude does outside your project. **macOS only.**
 
 ## Installation
 
@@ -36,13 +36,13 @@ When Claude Code runs, it can access files, run commands, search the web, and mo
 
 ```bash
 # View audit log
-cat ~/.claude/audit/audit.log
+cat ~/.claude/debug/audit.log
 
 # View errors
-cat ~/.claude/audit/error.log
+cat ~/.claude/debug/error.log
 
 # Watch in real-time
-tail -f ~/.claude/audit/audit.log
+tail -f ~/.claude/debug/audit.log
 ```
 
 ## Log Format
@@ -74,7 +74,7 @@ Script checks:
   • Is it an internal tool? → Skip
   • Otherwise → Log it
          ↓
-Append to ~/.claude/audit/audit.log
+Append to ~/.claude/debug/audit.log
 ```
 
 ## Use with Sandbox
@@ -87,6 +87,15 @@ Glass Claude pairs well with Claude Code's sandbox (`/sandbox`):
 | **Glass Claude** | Logs what Claude *did* do |
 
 Together: prevention + detection.
+
+## Hardened Security Settings
+
+Included `.claude/settings.json` blocks secrets, credentials, and dangerous commands. Copy to your project or `~/.claude/` for global use.
+
+**Bypass when needed:**
+- One-time: Allow when prompted
+- Session: `/allowed-tools` to manage session permissions
+- Project: Add to `allow` array in `.claude/settings.json`
 
 ## Files
 
