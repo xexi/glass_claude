@@ -1,4 +1,95 @@
 #!/bin/bash
+# Glass Claude Installer
+# curl -sSL https://raw.githubusercontent.com/xexi/glass_claude/main/install.sh | bash
+#
+# Installs audit logging for Claude Code with checksum-verified dependencies.
+
+set -e
+
+INSTALL_DIR="$HOME/.glass-claude"
+SCRIPT_PATH="$INSTALL_DIR/audit-log.sh"
+JQ_PATH="$INSTALL_DIR/jq"
+SETTINGS_FILE="$HOME/.claude/settings.json"
+AUDIT_DIR="$HOME/.claude/audit"
+
+# jq 1.8.1 official checksums from https://github.com/jqlang/jq/releases
+JQ_VERSION="1.8.1"
+JQ_SHA256_ARM64="a9fe3ea2f86dfc72f6728417521ec9067b343277152b114f4e98d8cb0e263603"
+JQ_SHA256_AMD64="e80dbe0d2a2597e3c11c404f03337b981d74b4a8504b70586c354b7697a7c27f"
+
+echo "=== Glass Claude Installer ==="
+echo ""
+
+# Create directories
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$HOME/.claude"
+mkdir -p "$AUDIT_DIR"
+
+# --- jq Installation ---
+install_jq() {
+    echo "Installing jq ${JQ_VERSION}..."
+
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        arm64|aarch64)
+            JQ_URL="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-macos-arm64"
+            JQ_SHA256="$JQ_SHA256_ARM64"
+            ;;
+        x86_64|amd64)
+            JQ_URL="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-macos-amd64"
+            JQ_SHA256="$JQ_SHA256_AMD64"
+            ;;
+        *)
+            echo "ERROR: Unsupported architecture: $ARCH" >&2
+            echo "Please install jq manually: brew install jq" >&2
+            exit 1
+            ;;
+    esac
+
+    TMP_JQ="/tmp/jq-glass-$$"
+
+    echo "Downloading from official GitHub release..."
+    curl -fsSL "$JQ_URL" -o "$TMP_JQ"
+
+    echo "Verifying SHA256 checksum..."
+    ACTUAL_SHA=$(shasum -a 256 "$TMP_JQ" | cut -d' ' -f1)
+
+    if [ "$ACTUAL_SHA" != "$JQ_SHA256" ]; then
+        echo "" >&2
+        echo "FATAL: Checksum verification FAILED" >&2
+        echo "Expected: $JQ_SHA256" >&2
+        echo "Got:      $ACTUAL_SHA" >&2
+        echo "" >&2
+        echo "This could indicate tampering. Installation aborted." >&2
+        rm -f "$TMP_JQ"
+        exit 2
+    fi
+
+    echo "Checksum verified."
+    chmod +x "$TMP_JQ"
+    mv "$TMP_JQ" "$JQ_PATH"
+    echo "jq installed: $JQ_PATH"
+}
+
+# Check for jq
+if command -v jq &>/dev/null; then
+    JQ_CMD="jq"
+    echo "Found system jq: $(which jq)"
+elif [ -x "$JQ_PATH" ]; then
+    JQ_CMD="$JQ_PATH"
+    echo "Found Glass Claude jq: $JQ_PATH"
+else
+    install_jq
+    JQ_CMD="$JQ_PATH"
+fi
+
+echo ""
+
+# --- Audit Script ---
+echo "Creating audit-log.sh..."
+
+cat > "$SCRIPT_PATH" << 'AUDIT_EOF'
+#!/bin/bash
 # Glass Claude - Audit Logger
 # Logs Claude Code tool usage outside project directory
 
@@ -169,3 +260,58 @@ if $SHOULD_LOG && [ -n "$TARGET" ]; then
 fi
 
 exit 0
+AUDIT_EOF
+
+chmod +x "$SCRIPT_PATH"
+echo "Created: $SCRIPT_PATH"
+
+echo ""
+
+# --- Configure Hook ---
+echo "Configuring Claude Code hook..."
+
+HOOK_JSON=$(cat << EOF
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$SCRIPT_PATH"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+)
+
+if [ ! -f "$SETTINGS_FILE" ] || [ ! -s "$SETTINGS_FILE" ] || [ "$(cat "$SETTINGS_FILE" 2>/dev/null)" = "{}" ]; then
+    echo "$HOOK_JSON" > "$SETTINGS_FILE"
+    echo "Created: $SETTINGS_FILE"
+else
+    # Settings exist - check if we can merge with jq
+    if echo "$(cat "$SETTINGS_FILE")" | "$JQ_CMD" -e '.hooks.PostToolUse' &>/dev/null; then
+        echo ""
+        echo "WARNING: PostToolUse hook already exists in $SETTINGS_FILE"
+        echo "Please manually add Glass Claude hook or merge configurations."
+    else
+        # Merge hooks into existing settings
+        MERGED=$("$JQ_CMD" --argjson hook "$HOOK_JSON" '. * $hook' "$SETTINGS_FILE")
+        echo "$MERGED" > "$SETTINGS_FILE"
+        echo "Updated: $SETTINGS_FILE"
+    fi
+fi
+
+echo ""
+echo "=== Installation Complete ==="
+echo ""
+echo "  Audit script: $SCRIPT_PATH"
+echo "  Hook config:  $SETTINGS_FILE"
+echo "  Audit logs:   $AUDIT_DIR/"
+echo ""
+echo "Run 'claude' in any project. Audit logs appear in ~/.claude/audit/"
+echo ""
