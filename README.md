@@ -1,6 +1,6 @@
 # Glass Claude
 
-Audit logging for Claude Code — see what Claude does outside your project. **macOS only.**
+**Beta** — Audit logging for Claude Code. See what Claude does. macOS only.
 
 ## Installation
 
@@ -8,29 +8,28 @@ Audit logging for Claude Code — see what Claude does outside your project. **m
 curl -sSL https://raw.githubusercontent.com/xexi/glass_claude/main/install.sh | bash
 ```
 
-That's it. Works globally for all projects.
+That's it. Works globally.
 
 ## What It Does
 
-When Claude Code runs, it can access files, run commands, search the web, and more. Glass Claude logs operations **outside your project** so you can:
+Claude Code can access files, run commands, search the web, and more. Glass Claude logs these operations so you can:
 
-- **Review** what Claude accessed beyond your codebase
-- **Detect** unexpected external access
+- **Review** what Claude accessed
+- **Detect** unexpected access
 - **Comply** with security policies
 
 ## What Gets Logged
 
-| Tool | When Logged |
-|------|-------------|
-| Read / Write / Edit | Outside project |
-| Glob / Grep | Search outside project |
-| Bash | Commands with external paths |
-| Task | Always |
-| WebFetch / WebSearch | Always |
-| MCP tools (mcp__*) | Always |
-| Unknown tools | Always |
+| Tool | Logged |
+|------|--------|
+| Read / Write / Edit | Yes |
+| Glob / Grep | Yes |
+| Bash | Yes |
+| Task | Yes |
+| WebFetch / WebSearch | Yes |
+| MCP tools (mcp__*) | Yes |
 
-**Not logged:** Operations inside your project, internal tools (TodoWrite, etc.)
+**Not logged:** Internal tools (TodoWrite, AskUserQuestion, EnterPlanMode, ExitPlanMode, TaskOutput) — these don't access files or external resources.
 
 ## Viewing Logs
 
@@ -59,7 +58,22 @@ TIMESTAMP|TOOL|TARGET
 ```
 TIMESTAMP|TOOL|TYPE|MESSAGE
 2026-01-15T04:30:00|Read|RESULT_ERROR|Permission denied
-2026-01-15T04:30:05|SYSTEM|FATAL|CLAUDE_PROJECT_DIR not set
+2026-01-15T04:30:05|SYSTEM|FATAL|jq not found
+```
+
+## Configuration
+
+Type `/glass` in Claude Code to configure:
+
+```
+> /glass
+
+Glass Claude Configuration
+
+1. Log everything (current)
+2. Exclude PWD - only log actions outside current directory
+
+Select mode (1 or 2):
 ```
 
 ## How It Works
@@ -69,10 +83,9 @@ Claude Code executes a tool
          ↓
 PostToolUse hook triggers → audit-log.sh receives JSON
          ↓
-Script checks:
-  • Is target inside project? → Skip
-  • Is it an internal tool? → Skip
-  • Otherwise → Log it
+Script checks: Internal tool? → Skip
+         ↓
+Config says exclude_pwd? → Skip if inside PWD
          ↓
 Append to ~/.claude/debug/audit.log
 ```
@@ -90,7 +103,7 @@ Together: prevention + detection.
 
 ## Hardened Security Settings
 
-Included `.claude/settings.json` blocks secrets, credentials, and dangerous commands. Copy to your project or `~/.claude/` for global use.
+Included `.claude/settings.json` blocks secrets, credentials, and dangerous commands. Copy to `~/.claude/` for global use.
 
 **Bypass when needed:**
 - One-time: Allow when prompted
@@ -104,23 +117,23 @@ After installation:
 ```
 ~/.glass-claude/
 ├── audit-log.sh      ← Audit script
+├── config            ← Configuration (created by /glass)
 └── jq                ← JSON parser (if not system-installed)
 
 ~/.claude/
 ├── settings.json     ← Hook configuration
-└── audit/
+├── commands/
+│   └── glass.md      ← /glass command
+└── debug/
     ├── audit.log     ← Tool usage log
-    └── error.log     ← Errors and spec changes
+    └── error.log     ← Errors
 ```
-
-## Spec Validation
-
-Glass Claude validates the Claude Code hook spec on every run. If the spec changes (e.g., `CLAUDE_PROJECT_DIR` is removed), auditing stops and logs a FATAL error. This prevents silent failures.
 
 ## Uninstall
 
 ```bash
 rm -rf ~/.glass-claude
+rm ~/.claude/commands/glass.md
 # Remove "hooks" section from ~/.claude/settings.json
 ```
 
